@@ -164,6 +164,7 @@ import org.openstreetmap.josm.tools.PlatformHook.NativeOsCallback;
 import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.WidgetBounds;
 import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
 import org.openstreetmap.josm.tools.bugreport.BugReportQueue;
 import org.openstreetmap.josm.tools.bugreport.BugReportSender;
@@ -1016,6 +1017,12 @@ public class MainApplication {
             mainFrame.setVisible(true);
             Config.getPref().put(PREF_STARTUP_FAILURE_COUNTER, null);
         });
+
+        // Test support for automated hosting benchmarks: publishes where widgets
+        // and map objects are, so a driver can aim by name instead of by
+        // hard-coded pixel coordinates. Does nothing unless
+        // -Djosm.widgetbounds is set. See WidgetBounds.
+        WidgetBounds.install();
 
         boolean maximized = Config.getPref().getBoolean("gui.maximized", false);
         if ((!args.hasOption(Option.NO_MAXIMIZE) && maximized) || args.hasOption(Option.MAXIMIZE)) {
