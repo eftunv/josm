@@ -186,8 +186,19 @@ public final class WidgetBounds {
         collectWidgets(frame, frame, widgets);
 
         StringBuilder sb = new StringBuilder(1024);
+        // The map's scale, so a test can assert that a zoom gesture did the same
+        // amount of work in every channel. Verifying only that "the map changed"
+        // is not enough: a wheel notch is not the same quantity as a wheel pixel
+        // delta, so two channels can both pass a change check while zooming by
+        // very different amounts — which would show up later as one product
+        // allocating more than another.
+        MapFrame mapFrame = MainApplication.getMap();
+        double scale = mapFrame != null && mapFrame.mapView != null
+                ? mapFrame.mapView.getScale()
+                : 0;
         sb.append("{\"window\":[").append(frame.getWidth()).append(',')
-                .append(frame.getHeight()).append("],\"widgets\":{");
+                .append(frame.getHeight()).append("],\"scale\":").append(scale)
+                .append(",\"widgets\":{");
         boolean first = true;
         for (Map.Entry<String, int[]> e : widgets.entrySet()) {
             if (!first) {
