@@ -196,7 +196,12 @@ public final class WidgetBounds {
         double scale = mapFrame != null && mapFrame.mapView != null
                 ? mapFrame.mapView.getScale()
                 : 0;
-        sb.append("{\"window\":[").append(frame.getWidth()).append(',')
+        // A timestamp, so a reader can require the reading to be FRESHER than the
+        // gesture it is meant to describe. Without it a periodic sampler is
+        // indistinguishable from an application that did nothing — which is
+        // exactly how a stale gauge was once read as a missing feature.
+        sb.append("{\"t\":").append(System.currentTimeMillis()).append(',');
+        sb.append("\"window\":[").append(frame.getWidth()).append(',')
                 .append(frame.getHeight()).append("],\"scale\":").append(scale)
                 .append(",\"widgets\":{");
         boolean first = true;
