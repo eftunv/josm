@@ -869,7 +869,17 @@ public class MainApplication {
         final int failures = prefs.getInt(PREF_STARTUP_FAILURE_COUNTER, 0);
         // Always increment failures
         prefs.putInt(PREF_STARTUP_FAILURE_COUNTER, failures + 1);
-        if (failures > 3) {
+        // An unattended host — an automated benchmark, a server-side deployment
+        // with no one at the keyboard — cannot answer a modal dialog, and this
+        // one blocks start-up indefinitely when it appears. Note isHeadless() is
+        // not the right guard: such hosts render a real UI, they simply have no
+        // interactive user, so JOSM's usual headless check does not cover them.
+        boolean unattended = Utils.getSystemProperty("josm.unattended") != null;
+        if (failures > 3 && unattended) {
+            Logging.warn("josm.unattended: skipping the start-up failure dialog "
+                    + "after " + failures + " failures, and clearing the counter");
+            prefs.put(PREF_STARTUP_FAILURE_COUNTER, null);
+        } else if (failures > 3) {
             final int selection = JOptionPane.showOptionDialog(new JDialog(),
                     tr("JOSM has failed to start up {0} times. Reset JOSM?", failures),
                     tr("Reset JOSM?"),

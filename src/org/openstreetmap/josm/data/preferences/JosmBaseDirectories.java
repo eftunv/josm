@@ -52,14 +52,53 @@ public final class JosmBaseDirectories implements IBaseDirectories {
      */
     private File userdataDir;
 
+
+    /**
+     * Resolves a directory property, allowing a per-instance value.
+     *
+     * <p>JOSM assumes it owns the process: one instance, one set of directories,
+     * named by one system property. A server-side host that runs several JOSM
+     * instances inside a single JVM cannot honour that — every instance would
+     * share one preferences, cache and autosave directory, so one user's state
+     * would leak into another's, and a cache warmed by one would subsidise the
+     * next. Setting the plain property per launch does not fix it either: it is
+     * global, so instances starting concurrently race for one value.</p>
+     *
+     * <p>So a value may also be given per instance, keyed by the name of the
+     * thread group the instance runs in: {@code josm.home.<group>} is preferred
+     * over {@code josm.home}. Hosts that isolate instances in thread groups can
+     * then give each one its own directory with no shared mutable state and no
+     * ordering between launches. Ordinary single-instance runs are unaffected —
+     * no such property exists, and the plain one is used exactly as before.</p>
+     *
+     * @param key the property, e.g. {@code josm.home}
+     * @return the per-instance value if one is set, otherwise the plain value,
+     *         otherwise {@code null}
+     */
+    private static String scopedProperty(String key) {
+        ThreadGroup group = Thread.currentThread().getThreadGroup();
+        // A host isolating instances gives each a root group of its own; walking
+        // to the top finds it, and finds the JVM's own root otherwise.
+        while (group != null && group.getParent() != null) {
+            group = group.getParent();
+        }
+        if (group != null) {
+            String scoped = getSystemProperty(key + '.' + group.getName());
+            if (scoped != null && !scoped.isEmpty()) {
+                return scoped;
+            }
+        }
+        return getSystemProperty(key);
+    }
+
     @Override
     public File getPreferencesDirectory(boolean createIfMissing) {
         if (preferencesDir == null) {
-            String path = getSystemProperty("josm.pref");
+            String path = scopedProperty("josm.pref");
             if (path != null) {
                 preferencesDir = new File(path).getAbsoluteFile();
             } else {
-                path = getSystemProperty("josm.home");
+                path = scopedProperty("josm.home");
                 if (path != null) {
                     preferencesDir = new File(path).getAbsoluteFile();
                 } else {
@@ -88,11 +127,11 @@ public final class JosmBaseDirectories implements IBaseDirectories {
     @Override
     public File getUserDataDirectory(boolean createIfMissing) {
         if (userdataDir == null) {
-            String path = getSystemProperty("josm.userdata");
+            String path = scopedProperty("josm.userdata");
             if (path != null) {
                 userdataDir = new File(path).getAbsoluteFile();
             } else {
-                path = getSystemProperty("josm.home");
+                path = scopedProperty("josm.home");
                 if (path != null) {
                     userdataDir = new File(path).getAbsoluteFile();
                 } else {
@@ -121,11 +160,11 @@ public final class JosmBaseDirectories implements IBaseDirectories {
     @Override
     public File getCacheDirectory(boolean createIfMissing) {
         if (cacheDir == null) {
-            String path = getSystemProperty("josm.cache");
+            String path = scopedProperty("josm.cache");
             if (path != null) {
                 cacheDir = new File(path).getAbsoluteFile();
             } else {
-                path = getSystemProperty("josm.home");
+                path = scopedProperty("josm.home");
                 if (path != null) {
                     cacheDir = new File(path, "cache");
                 } else {
