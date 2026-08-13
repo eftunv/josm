@@ -78,8 +78,14 @@ public final class WidgetBounds {
             "SelectionListDialog", "selection",
             "RelationListDialog", "relations");
 
-    /** Keeps one line to a sane size; ways are reported in id order. */
-    private static final int MAX_TARGETS = 60;
+    /**
+     * Keeps one line to a sane size. When there are more objects than this, the
+     * ones nearest the middle of the map win: truncating by id instead reported
+     * whatever the data file happened to define first, which for a generated
+     * grid meant a single row at the very edge of the view — technically on
+     * screen, useless as a test target.
+     */
+    private static final int MAX_TARGETS = 80;
 
     private static volatile boolean installed;
 
@@ -241,11 +247,14 @@ public final class WidgetBounds {
         Rectangle view = new Rectangle(0, 0, map.mapView.getWidth(),
                 map.mapView.getHeight());
 
+        double midX = view.getWidth() / 2;
+        double midY = view.getHeight() / 2;
+        List<double[]> found = new ArrayList<>();   // {distance, cx, cy, index}
         List<Way> ways = new ArrayList<>(ds.getWays());
         ways.sort((a, b) -> Long.compare(a.getUniqueId(), b.getUniqueId()));
-        int emitted = 0;
-        for (Way w : ways) {
-            if (emitted >= MAX_TARGETS || w.isDeleted()) {
+        for (int i = 0; i < ways.size(); i++) {
+            Way w = ways.get(i);
+            if (w.isDeleted()) {
                 continue;
             }
             double sx = 0;
@@ -263,14 +272,24 @@ public final class WidgetBounds {
             if (n == 0) {
                 continue;
             }
-            int cx = (int) Math.round(sx / n);
-            int cy = (int) Math.round(sy / n);
+            double cx = sx / n;
+            double cy = sy / n;
             // Only what is actually on screen can be clicked.
-            if (!view.contains(cx, cy)) {
+            if (!view.contains((int) Math.round(cx), (int) Math.round(cy))) {
                 continue;
             }
-            out.put(name(w), new int[] {origin.x + cx, origin.y + cy});
-            emitted++;
+            double dx = cx - midX;
+            double dy = cy - midY;
+            found.add(new double[] {dx * dx + dy * dy, cx, cy, i});
+        }
+        // Nearest the centre first, then by id so a tie is deterministic.
+        found.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0])
+                : Double.compare(a[3], b[3]));
+        for (int k = 0; k < found.size() && k < MAX_TARGETS; k++) {
+            double[] f = found.get(k);
+            Way w = ways.get((int) f[3]);
+            out.put(name(w), new int[] {origin.x + (int) Math.round(f[1]),
+                    origin.y + (int) Math.round(f[2])});
         }
         return out;
     }
